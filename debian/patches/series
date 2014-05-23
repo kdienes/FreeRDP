@@ -1,2 +1,3 @@
-1001_fix-compliling.patch
-2001_fix-libav10-FTBFS.patch
+# 1001_fix-compliling.patch
+# 2001_fix-libav10-FTBFS.patch
+2002_fix-libav-enums.patch
