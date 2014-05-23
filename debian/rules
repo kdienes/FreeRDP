@@ -9,7 +9,7 @@ export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 	dh ${@}
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DWITH_PULSEAUDIO=ON
+	dh_auto_configure -- -DWITH_PULSEAUDIO=ON -DWITH_SERVER=ON -DSTATIC_CHANNELS=OFF
 
 override_dh_install:
 	# Removing unused files
