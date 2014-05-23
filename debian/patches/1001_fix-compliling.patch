@@ -1,0 +1,36 @@
+Description: Trying to build something against libfreerdp-dev leads to compilation errors.
+Author: "Jean-Baptiste Rouault" <jean-baptiste.rouault@diateam.net>
+Abstract:
+ Trying to build against libfreerdp-dev leads to compilation errors similar to the
+ followin one:
+ .
+ <quote>
+ In file included from /usr/include/freerdp/gdi/gdi.h:26:0,
+ [...]
+ /usr/include/freerdp/utils/debug.h:23:20: fatal error: config.h: No such file or directory
+ </quote>
+Index: include/freerdp/utils/debug.h
+===================================================================
+--- a/include/freerdp/utils/debug.h	2013-02-19 09:35:03.000000000 +0100
++++ b/include/freerdp/utils/debug.h	2013-02-19 09:35:25.000000000 +0100
+@@ -20,8 +20,6 @@
+ #ifndef __UTILS_DEBUG_H
+ #define __UTILS_DEBUG_H
+ 
+-#include "config.h"
+-
+ #include <stdio.h>
+ 
+ #define DEBUG_NULL(fmt, ...) do { } while (0)
+Index: libfreerdp-core/freerdp.c
+===================================================================
+--- a/libfreerdp-core/freerdp.c	2013-02-19 09:34:31.000000000 +0100
++++ b/libfreerdp-core/freerdp.c	2013-02-19 09:34:51.000000000 +0100
+@@ -17,6 +17,7 @@
+  * limitations under the License.
+  */
+ 
++#include "config.h"
+ #include "rdp.h"
+ #include "input.h"
+ #include "update.h"

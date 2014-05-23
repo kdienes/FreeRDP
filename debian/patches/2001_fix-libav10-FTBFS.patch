@@ -1,0 +1,148 @@
+Description: Fix FTBFS against libav10
+Author: Mike Gabriel <mike.gabriel@das-netzwerkteam.de>
+Abstract:
+ Inspired by:
+  o https://github.com/FreeRDP/FreeRDP/commit/6fe23e1a3860528a8ecdfc8e9ccfdbd0e3945869
+  o http://sourceforge.net/p/freerdp/mailman/freerdp-devel/thread/520BE6FD.5080803@macports.org/
+  o http://git.videolan.org/?p=ffmpeg.git;a=blobdiff;f=libavformat/dvenc.c;h=577ba7c4da93f24ff13018860929c9a40250b080;hp=a7d281a799727e14c21206c8df5fc997a31d45fa;hb=e0aa5e772bbe4c52182a5db321b0da6b98205ef1;hpb=8337b5db967ecadab4bb65c272cb47d350ecb83b
+
+--- a/channels/drdynvc/tsmf/ffmpeg/tsmf_ffmpeg.c
++++ b/channels/drdynvc/tsmf/ffmpeg/tsmf_ffmpeg.c
+@@ -34,12 +34,20 @@
+ #define AVMEDIA_TYPE_AUDIO 1
+ #endif
+ 
++#if LIBAVCODEC_VERSION_MAJOR >= 55
++#define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
++#endif
++
+ typedef struct _TSMFFFmpegDecoder
+ {
+ 	ITSMFDecoder iface;
+ 
+ 	int media_type;
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 	enum CodecID codec_id;
++#else
++	enum AVCodecID codec_id;
++#endif
+ 	AVCodecContext* codec_context;
+ 	AVCodec* codec;
+ 	AVFrame* frame;
+@@ -89,8 +97,12 @@
+ 	mdecoder->codec_context->block_align = media_type->BlockAlign;
+ 
+ #ifdef AV_CPU_FLAG_SSE2
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 	mdecoder->codec_context->dsp_mask = AV_CPU_FLAG_SSE2 | AV_CPU_FLAG_MMX2;
+ #else
++	av_set_cpu_flags_mask(AV_CPU_FLAG_SSE2 | AV_CPU_FLAG_MMX2); 
++#endif
++#else
+ #if LIBAVCODEC_VERSION_MAJOR < 53
+ 	mdecoder->codec_context->dsp_mask = FF_MM_SSE2 | FF_MM_MMXEXT;
+ #else
+@@ -203,28 +215,60 @@
+ 	switch (media_type->SubType)
+ 	{
+ 		case TSMF_SUB_TYPE_WVC1:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_VC1;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_VC1;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_WMA2:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_WMAV2;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_WMAV2;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_WMA9:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_WMAPRO;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_WMAPRO;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_MP3:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_MP3;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_MP3;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_MP2A:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_MP2;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_MP2;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_MP2V:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_MPEG2VIDEO;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_MPEG2VIDEO;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_WMV3:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_WMV3;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_WMV3;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_AAC:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_AAC;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_AAC;
++#endif
+ 			/* For AAC the pFormat is a HEAACWAVEINFO struct, and the codec data
+ 			   is at the end of it. See
+ 			   http://msdn.microsoft.com/en-us/library/dd757806.aspx */
+@@ -236,10 +280,18 @@
+ 			break;
+ 		case TSMF_SUB_TYPE_H264:
+ 		case TSMF_SUB_TYPE_AVC1:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_H264;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_H264;
++#endif
+ 			break;
+ 		case TSMF_SUB_TYPE_AC3:
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 			mdecoder->codec_id = CODEC_ID_AC3;
++#else
++			mdecoder->codec_id = AV_CODEC_ID_AC3;
++#endif
+ 			break;
+ 		default:
+ 			return false;
+@@ -337,7 +389,11 @@
+ #endif
+ 
+ 	if (mdecoder->decoded_size_max == 0)
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 		mdecoder->decoded_size_max = AVCODEC_MAX_AUDIO_FRAME_SIZE + 16;
++#else
++		mdecoder->decoded_size_max = MAX_AUDIO_FRAME_SIZE + 16;
++#endif
+ 	mdecoder->decoded_data = xzalloc(mdecoder->decoded_size_max);
+ 	/* align the memory for SSE2 needs */
+ 	dst = (uint8*) (((uintptr_t)mdecoder->decoded_data + 15) & ~ 0x0F);
+@@ -348,7 +404,11 @@
+ 	while (src_size > 0)
+ 	{
+ 		/* Ensure enough space for decoding */
++#if LIBAVCODEC_VERSION_MAJOR < 55
+ 		if (mdecoder->decoded_size_max - mdecoder->decoded_size < AVCODEC_MAX_AUDIO_FRAME_SIZE)
++#else
++		if (mdecoder->decoded_size_max - mdecoder->decoded_size < MAX_AUDIO_FRAME_SIZE)
++#endif
+ 		{
+ 			mdecoder->decoded_size_max = mdecoder->decoded_size_max * 2 + 16;
+ 			mdecoder->decoded_data = xrealloc(mdecoder->decoded_data, mdecoder->decoded_size_max);
